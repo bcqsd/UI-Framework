@@ -16,3 +16,18 @@ export function parsePath(path){
         return obj
     }
 }
+const arrayProto=Array.prototype
+//array的拦截器
+export const arrayMethods=Object.create(arrayProto);
+['push','pop','shift','unshift','splice','sort','reverse'].forEach(method=>{
+    const original=arrayProto[method]
+    Object.defineProperty(arrayMethods,method,{
+        enumerable:false,
+        writable:true,
+        configurable:true,
+        value:function mutator(...args){
+            //dosomething
+            return original.apply(this,args)
+        }
+    })
+})
