@@ -1,11 +1,13 @@
 import Dep from './Dep.js'
-import { arrayMethods } from './utils.js'
+import { arrayMethods,def } from './utils.js'
 /**
  * 传入一个对象，监听对象上的所有属性
  */
 export class Observer{
     constructor(value){
         this.value=value
+        this.dep=new Dep()
+        def(value,'__ob__',this)
         if(Array.isArray(value)){
             Object.setPrototypeOf(value,arrayMethods)
         }else{
@@ -15,6 +17,9 @@ export class Observer{
     //递归遍历所有属性直到obj不是对象
     walk(obj){
         Object.keys(obj).forEach(p=>defineReactive(obj,p,obj[p]))
+    }
+    observeArray(items){
+        items.forEach(item=>observe(item))
     }
 }
 
@@ -53,3 +58,30 @@ export function observe(value,asRootData){
     }
     return ob
 }
+
+const arrayProto=Array.prototype
+//array的拦截器
+export const arrayMethods=Object.create(arrayProto);
+['push','pop','shift','unshift','splice','sort','reverse'].forEach(method=>{
+    const original=arrayProto[method]
+    def(arrayMethods,method,function mutator(...args){
+        const result=original.apply(this,args)
+        const ob=this.__ob__
+        //监听新增元素
+        let inserted
+        switch (method) {
+            case 'push':
+                inserted=args
+                break;
+            case 'unshift':
+                inserted=args
+                break;
+            case 'splice':
+                inserted=args.slice(2)
+                break;
+        }
+        if(inserted) ob.obverseArray(inserted)
+        ob.dep.notify()
+        return result
+    })
+})
