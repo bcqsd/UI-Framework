@@ -1,4 +1,4 @@
-import { tracker, trigger } from "./effect"
+import { track, trigger } from "./effect"
 
 /**
  *  function reactive(target) : set proxy on an object, tracker the active effect
@@ -7,16 +7,17 @@ import { tracker, trigger } from "./effect"
  */
 export function reactive(target){
     const proxy=new Proxy(target,{
-        set(target,key){
-            
-           tracker(target,key)
+        get(target,key){
+
+           track(target,key)
            return Reflect.get(target,key)
         },
-        get(target,key,value){
+        set(target,key,value){
 
            const res=Reflect.set(target,key,value)
            trigger(target,key)
            return res
         }
     })
+    return proxy
 }
