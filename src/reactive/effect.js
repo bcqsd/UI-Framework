@@ -1,14 +1,14 @@
 
-let activeEffect;
+let effectStack=[]
 
 export function effect(fn){
    const effectFn= ()=>{
        try{
-         activeEffect=effectFn;  
+         effectStack.push(effectFn)
          return fn()
        }
        finally{
-          activeEffect=undefined;
+          effectStack.pop()
        }
    }
    //初始化执行，收集依赖
@@ -25,7 +25,7 @@ export function effect(fn){
 const targetMap=new WeakMap()
 
 export function track(target,key){
-    if(!activeEffect) {
+    if(!effectStack.length) {
       //说明get操作并不是尚未被监视的activeFn引起，而是set操作导致的重新get
         return
     }
@@ -33,7 +33,7 @@ export function track(target,key){
     if(!depsMap) targetMap.set(target,(depsMap=new Map()))
     let deps=depsMap.get(key)
     if(!deps) depsMap.set(key,(deps=new Set()))
-    deps.add(activeEffect)
+    deps.add(effectStack[effectStack.length-1])
 }
 export function trigger(target,key){
    const depsMap=targetMap.get(target)

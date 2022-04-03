@@ -1,15 +1,15 @@
 'use strict';
 
-let activeEffect;
+let effectStack=[];
 
 function effect(fn){
    const effectFn= ()=>{
        try{
-         activeEffect=effectFn;  
+         effectStack.push(effectFn);
          return fn()
        }
        finally{
-          activeEffect=undefined;
+          effectStack.pop();
        }
    };
    //初始化执行，收集依赖
@@ -26,7 +26,7 @@ function effect(fn){
 const targetMap=new WeakMap();
 
 function track(target,key){
-    if(!activeEffect) {
+    if(!effectStack.length) {
       //说明get操作并不是尚未被监视的activeFn引起，而是set操作导致的重新get
         return
     }
@@ -34,7 +34,7 @@ function track(target,key){
     if(!depsMap) targetMap.set(target,(depsMap=new Map()));
     let deps=depsMap.get(key);
     if(!deps) depsMap.set(key,(deps=new Set()));
-    deps.add(activeEffect);
+    deps.add(effectStack[effectStack.length-1]);
 }
 function trigger(target,key){
    const depsMap=targetMap.get(target);
@@ -44,7 +44,7 @@ function trigger(target,key){
    }
    const deps=depsMap.get(key);
    if(!deps) {
-     console.warn(`${key} has not been tracked`); 
+    //  console.warn(`${key} has not been tracked`) 
     return
    }
    deps.forEach(effectFn=>{
