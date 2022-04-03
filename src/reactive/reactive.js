@@ -8,12 +8,15 @@ import { track, trigger } from "./effect"
 export function reactive(target){
     const proxy=new Proxy(target,{
         get(target,key){
-
+           const res=Reflect.get(target,key)
            track(target,key)
-           return Reflect.get(target,key)
+           return res
         },
         set(target,key,value){
-
+           const oldValue=Reflect.get(target,key)
+           if(oldValue===value){
+               return 
+           }
            const res=Reflect.set(target,key,value)
            trigger(target,key)
            return res

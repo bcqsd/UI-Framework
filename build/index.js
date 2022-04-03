@@ -16,11 +16,20 @@ function effect(fn){
    effectFn();
    return effectFn
 }
-
+/**
+ * {
+ *   reactiveTarget:{
+ *         key: Set(depsFn)    
+ *      }  
+ * }
+ */
 const targetMap=new WeakMap();
 
 function track(target,key){
-    if(!activeEffect) console.warn('fail to track the active effect');
+    if(!activeEffect) {
+        console.warn('not get from a effectFn');
+        return
+    }
     let depsMap=targetMap.get(target);
     if(!depsMap) targetMap.set(target,(depsMap=new Map()));
     let deps=depsMap.get(key);
@@ -45,12 +54,15 @@ function trigger(target,key){
 function reactive(target){
     const proxy=new Proxy(target,{
         get(target,key){
-
+           const res=Reflect.get(target,key);
            track(target,key);
-           return Reflect.get(target,key)
+           return res
         },
         set(target,key,value){
-
+           const oldValue=Reflect.get(target,key);
+           if(oldValue===value){
+               return 
+           }
            const res=Reflect.set(target,key,value);
            trigger(target,key);
            return res
