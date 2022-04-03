@@ -1,3 +1,4 @@
+
 let activeEffect;
 
 export function effect(fn){
@@ -25,7 +26,7 @@ const targetMap=new WeakMap()
 
 export function track(target,key){
     if(!activeEffect) {
-        console.warn('not get from a effectFn')
+      //说明get操作并不是尚未被监视的activeFn引起，而是set操作导致的重新get
         return
     }
     let depsMap=targetMap.get(target)
@@ -36,9 +37,15 @@ export function track(target,key){
 }
 export function trigger(target,key){
    const depsMap=targetMap.get(target)
-   if(!depsMap) return
+   if(!depsMap) {
+      console.warn(`${target} has not been reactive`)
+      return 
+   }
    const deps=depsMap.get(key)
-   if(!deps) return
+   if(!deps) {
+    //  console.warn(`${key} has not been tracked`) 
+    return
+   }
    deps.forEach(effectFn=>{
        effectFn()
    })

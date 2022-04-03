@@ -27,7 +27,7 @@ const targetMap=new WeakMap();
 
 function track(target,key){
     if(!activeEffect) {
-        console.warn('not get from a effectFn');
+      //说明get操作并不是尚未被监视的activeFn引起，而是set操作导致的重新get
         return
     }
     let depsMap=targetMap.get(target);
@@ -38,12 +38,25 @@ function track(target,key){
 }
 function trigger(target,key){
    const depsMap=targetMap.get(target);
-   if(!depsMap) return
+   if(!depsMap) {
+      console.warn(`${target} has not been reactive`);
+      return 
+   }
    const deps=depsMap.get(key);
-   if(!deps) return
+   if(!deps) {
+     console.warn(`${key} has not been tracked`); 
+    return
+   }
    deps.forEach(effectFn=>{
        effectFn();
    });
+}
+
+function isObject(target){
+    return typeof target==='object' &&target!==null
+}
+function hasChanged(oldValue,value){
+    return oldValue!==value && !(Number.isNaN(oldValue)&&Number.isNaN(value))
 }
 
 /**
@@ -51,28 +64,51 @@ function trigger(target,key){
  *  when be getted and trigger the effects in effect list
  * 
  */
+const proxyMap=new WeakMap();
+
 function reactive(target){
+    // 检查对同一个对象的代理 a=reactive(obj) b=reactiveobj a===b
+    if(proxyMap.has(target)) {
+        return proxyMap.get(target)
+    }
+    if(!isObject(target)) {
+        console.warn('target is not an object');
+        return target
+    }
+    //检查重复代理 reactive(reactiveObj)=reactiveObj
+    if(isReactive(target)) {
+        return target
+    }
     const proxy=new Proxy(target,{
-        get(target,key){
-           const res=Reflect.get(target,key);
+        get(target,key,receiver){
+            if(key=='__isReactive'){
+                return true
+            }
+           const res=Reflect.get(target,key,receiver);
            track(target,key);
-           return res
+           //对象深层代理
+           return isObject(res)?reactive(res):res
         },
-        set(target,key,value){
-           const oldValue=Reflect.get(target,key);
-           if(oldValue===value){
-               return 
-           }
-           const res=Reflect.set(target,key,value);
+        set(target,key,value,receiver){
+           const oldValue=Reflect.get(target,key,receiver);
+           if(key!=='length'&&!hasChanged(oldValue,value)){
+               return true
+           }         
+           const res=Reflect.set(target,key,value,receiver);
            trigger(target,key);
            return res
         }
     });
+    proxyMap.set(target,proxy);
     return proxy
+}
+//特殊代理key并不真实存在
+function isReactive(target){
+     return target.__isReactive
 }
 
 window.t=reactive({
-    value:1
+    value:[1]
 });
 effect(()=>{
     console.log('t.value is: '+t.value);
