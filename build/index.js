@@ -2,7 +2,7 @@
 
 let effectStack=[];
 
-function effect(fn){
+function effect(fn,options){
    const effectFn= ()=>{
        try{
          effectStack.push(effectFn);
@@ -13,7 +13,8 @@ function effect(fn){
        }
    };
    //初始化执行，收集依赖
-   effectFn();
+  if(!options.lazy)  effectFn();
+  if(options.scheduler) effectFn.scheduler=options.scheduler;
    return effectFn
 }
 /**
@@ -39,7 +40,7 @@ function track(target,key){
 function trigger(target,key){
    const depsMap=targetMap.get(target);
    if(!depsMap) {
-      console.warn(`${target} has not been reactive`);
+     //说明当前target还没有被副作用函数或computed函数依赖
       return 
    }
    const deps=depsMap.get(key);
@@ -48,7 +49,11 @@ function trigger(target,key){
     return
    }
    deps.forEach(effectFn=>{
-       effectFn();
+      if(effectFn.scheduler) {
+        effectFn.scheduler();
+      }else {
+        effectFn();
+      }
    });
 }
 
@@ -107,9 +112,40 @@ function isReactive(target){
      return target.__isReactive
 }
 
-window.t=reactive({
-    value:[1]
-});
-effect(()=>{
-    console.log('t.value is: '+t.value);
-});
+function ref(value){
+   return reactive({value:value})
+}
+
+function computed(getter){
+    return new computedImpl(getter)
+}
+class computedImpl{
+    constructor(getter){
+        this.__dirty=true;
+        this.__value=undefined;
+        this.__effect=effect(getter,{
+            lazy:true,
+            scheduler:()=>{
+                this.__dirty=true;
+                //依赖改变后虽然不会执行effectFn,但是要通知targetMap里的所有effect函数更新
+                trigger(this,'value');
+            }
+        });
+    }
+    get value(){
+        //如果依赖改变，执行computed函数重新计算。所以computed函数应该是纯函数而非副作用函数
+          if(this.__dirty){
+            this.__value=this.__effect();
+            this.__dirty=false;
+            //computed自己也是响应式的，其他effect函数get computed函数的时候会引发track
+            track(this,'value');
+          }
+          return this.__value
+    }
+}
+
+const num=ref(0);
+(window.c=computed(()=>{
+    console.log(`calculate c.value`);
+    return num.value*2
+}));

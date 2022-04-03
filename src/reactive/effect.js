@@ -1,7 +1,7 @@
 
 let effectStack=[]
 
-export function effect(fn){
+export function effect(fn,options){
    const effectFn= ()=>{
        try{
          effectStack.push(effectFn)
@@ -12,7 +12,8 @@ export function effect(fn){
        }
    }
    //初始化执行，收集依赖
-   effectFn()
+  if(!options.lazy)  effectFn()
+  if(options.scheduler) effectFn.scheduler=options.scheduler
    return effectFn
 }
 /**
@@ -38,7 +39,7 @@ export function track(target,key){
 export function trigger(target,key){
    const depsMap=targetMap.get(target)
    if(!depsMap) {
-      console.warn(`${target} has not been reactive`)
+     //说明当前target还没有被副作用函数或computed函数依赖
       return 
    }
    const deps=depsMap.get(key)
@@ -47,6 +48,10 @@ export function trigger(target,key){
     return
    }
    deps.forEach(effectFn=>{
-       effectFn()
+      if(effectFn.scheduler) {
+        effectFn.scheduler()
+      }else{
+        effectFn()
+      }
    })
 }
