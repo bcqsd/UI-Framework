@@ -1,4 +1,4 @@
-import {Fragment, h, render} from './runtime'
+import {Fragment, h, render,Text} from './runtime/index.js'
 const vnode=h(
   'div',{
       class: 'a b',
@@ -8,7 +8,7 @@ const vnode=h(
       },
       onClick:()=>console.log('click'),
       id:'foo',
-      checked,
+      checked:'',
       custom:false,
   },
   [

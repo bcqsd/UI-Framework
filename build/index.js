@@ -1,151 +1,144 @@
 'use strict';
 
-let effectStack=[];
-
-function effect(fn,options){
-   const effectFn= ()=>{
-       try{
-         effectStack.push(effectFn);
-         return fn()
-       }
-       finally{
-          effectStack.pop();
-       }
-   };
-   //初始化执行，收集依赖
-  if(!options.lazy)  effectFn();
-  if(options.scheduler) effectFn.scheduler=options.scheduler;
-   return effectFn
+function isArray(target){
+    return Array.isArray(target)
 }
+
+function isString(target){
+    return typeof target ==='string'
+}
+function isBoolean(target){
+    return typeof target ==='boolean'
+}
+
+const ShapeFlags={
+    ELEMENT:1,
+    TEXT:1<<1,
+    FRAGMENT:1<<2,
+    COMPONENT:1<<3,
+    TEXT_CHILDREN:1<<4,
+    ARRAY_CHILDREN:1<<5,
+    CHILDREN:(1<<4) | (1<<5)
+};
+const Text=Symbol('Text');
+const Fragment=Symbol('Fragment');
 /**
- * {
- *   reactiveTarget:{
- *         key: Set(depsFn)    
- *      }  
- * }
- */
-const targetMap=new WeakMap();
-
-function track(target,key){
-    if(!effectStack.length) {
-      //说明get操作并不是尚未被监视的activeFn引起，而是set操作导致的重新get
-        return
-    }
-    let depsMap=targetMap.get(target);
-    if(!depsMap) targetMap.set(target,(depsMap=new Map()));
-    let deps=depsMap.get(key);
-    if(!deps) depsMap.set(key,(deps=new Set()));
-    deps.add(effectStack[effectStack.length-1]);
-}
-function trigger(target,key){
-   const depsMap=targetMap.get(target);
-   if(!depsMap) {
-     //说明当前target还没有被副作用函数或computed函数依赖
-      return 
-   }
-   const deps=depsMap.get(key);
-   if(!deps) {
-    //  console.warn(`${key} has not been tracked`) 
-    return
-   }
-   deps.forEach(effectFn=>{
-      if(effectFn.scheduler) {
-        effectFn.scheduler();
-      }else {
-        effectFn();
-      }
-   });
-}
-
-function isObject(target){
-    return typeof target==='object' &&target!==null
-}
-function hasChanged(oldValue,value){
-    return oldValue!==value && !(Number.isNaN(oldValue)&&Number.isNaN(value))
-}
-
-/**
- *  function reactive(target) : set proxy on an object, tracker the active effect
- *  when be getted and trigger the effects in effect list
  * 
+ * @param {string | Object | Text | Fragment} type  'div' Component Text Fragment 
+ * @param {Object | null} props 
+ * @param {string | array | null} children 
+ * @returns  VNode
  */
-const proxyMap=new WeakMap();
+function h(type,props,children){
+    let shapeFlag=0;
+    if(isString(type)) shapeFlag=ShapeFlags.ELEMENT;
+    else if(type ===Text) shapeFlag=ShapeFlags.TEXT;
+    else if(type===Fragment) shapeFlag=ShapeFlags.FRAGMENT;
+    else shapeFlag=ShapeFlags.COMPONENT;
 
-function reactive(target){
-    // 检查对同一个对象的代理 a=reactive(obj) b=reactiveobj a===b
-    if(proxyMap.has(target)) {
-        return proxyMap.get(target)
+    if(isString(children)) shapeFlag|=ShapeFlags.TEXT_CHILDREN;
+    else if(isArray(children)) shapeFlag |=ShapeFlags.ARRAY_CHILDREN;
+    return {
+        type,
+        props,
+        children,
+        shapeFlag
     }
-    if(!isObject(target)) {
-        console.warn('target is not an object');
-        return target
-    }
-    //检查重复代理 reactive(reactiveObj)=reactiveObj
-    if(isReactive(target)) {
-        return target
-    }
-    const proxy=new Proxy(target,{
-        get(target,key,receiver){
-            if(key=='__isReactive'){
-                return true
-            }
-           const res=Reflect.get(target,key,receiver);
-           track(target,key);
-           //对象深层代理
-           return isObject(res)?reactive(res):res
-        },
-        set(target,key,value,receiver){
-           const oldValue=Reflect.get(target,key,receiver);
-           if(key!=='length'&&!hasChanged(oldValue,value)){
-               return true
-           }         
-           const res=Reflect.set(target,key,value,receiver);
-           trigger(target,key);
-           return res
+}
+
+function render(vnode,container){
+    mount(vnode,container);
+}
+
+function mount(vnode,container){
+    const {shapeFlag}=vnode;
+    if(shapeFlag & ShapeFlags.ELEMENT) mountElement(vnode,container);
+    else if(shapeFlag & ShapeFlags.TEXT) mountText(vnode,container);
+    else if(shapeFlag & ShapeFlags.FRAGMENT) mountFragment(vnode,container);
+    else ;
+}
+
+function mountElement(vnode,container){
+   const {type,props}=vnode;
+   const el=document.createElement(type);
+   mountProps(props,el);
+   mountChildren(vnode,el);
+   container.appendChild(el);
+}
+function mountText(vnode,container){
+   const textNode=document.createTextNode(vnode.children);
+   container.appendChild(textNode);
+}
+function mountFragment(vnode,container){
+   mountChildren(vnode,container);
+}
+
+const domPropsRE=/[A-Z]|^(value|checked|selected|muted|disabled)$/;
+function mountProps(props,el){
+    for(const key in props){
+        const value=props[key];
+        switch (key) {
+            case 'class':
+                el.className=value;
+                break;
+            case 'style':
+                for(const styleName in value){
+                    el.style[styleName]=value[styleName];
+                }        
+                break;
+            default:
+                //事件 例如onClick
+                if(/^on[A-Z]/.test(key)){
+                   const eventName=key.slice(2).toLowerCase();
+                   el.addEventListener(eventName,value);
+                   //原生标准prop属性
+                } else if(domPropsRE.test(key)){
+                     //  只写属性默认true
+                    if(value===''&&isBoolean(el[key])) value=true;
+                    el[key]=value;
+                } else {
+                    //移除属性
+                    if(value==null || value===false){
+                        el.removeAttribute(key);
+                    }else {
+                        el.setAttribute(key,value);
+                    }
+                }
+                break;
         }
-    });
-    proxyMap.set(target,proxy);
-    return proxy
+    }
 }
-//特殊代理key并不真实存在
-function isReactive(target){
-     return target.__isReactive
-}
-
-function ref(value){
-   return reactive({value:value})
-}
-
-function computed(getter){
-    return new computedImpl(getter)
-}
-class computedImpl{
-    constructor(getter){
-        this.__dirty=true;
-        this.__value=undefined;
-        this.__effect=effect(getter,{
-            lazy:true,
-            scheduler:()=>{
-                this.__dirty=true;
-                //依赖改变后虽然不会执行effectFn,但是要通知targetMap里的所有effect函数更新
-                trigger(this,'value');
-            }
+function mountChildren(vnode,container){
+    const {shapeFlag}=vnode;
+    if(shapeFlag & ShapeFlags.TEXT_CHILDREN) mountText(vnode,container);
+    else if(shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        vnode.children.forEach(child=>{
+            //递归挂载children
+            mount(child,container);
         });
     }
-    get value(){
-        //如果依赖改变，执行computed函数重新计算。所以computed函数应该是纯函数而非副作用函数
-          if(this.__dirty){
-            this.__value=this.__effect();
-            this.__dirty=false;
-            //computed自己也是响应式的，其他effect函数get computed函数的时候会引发track
-            track(this,'value');
-          }
-          return this.__value
-    }
 }
 
-const num=ref(0);
-(window.c=computed(()=>{
-    console.log(`calculate c.value`);
-    return num.value*2
-}));
+const vnode=h(
+  'div',{
+      class: 'a b',
+      style:{
+          border:'1px solid',
+          fontSize:'14px',
+      },
+      onClick:()=>console.log('click'),
+      id:'foo',
+      checked:'',
+      custom:false,
+  },
+  [
+      h('ul',null,[
+          h('li',{style:{color:'red'}},'1'),
+          h('li',null,'2'),
+          h('li',{style:{color:'blue'}},'1'),
+          h(Fragment,null,[h('li',null,'4'),h('li')]),
+          h('li',null,[h(Text,null,'hello world')]),
+      ])
+  ]
+);
+render(vnode,document.body);

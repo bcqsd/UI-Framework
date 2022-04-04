@@ -1,4 +1,4 @@
-import { isArray, isString } from "../utils"
+import { isArray, isString } from "../utils/index"
 
 export const ShapeFlags={
     ELEMENT:1,

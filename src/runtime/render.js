@@ -1,4 +1,4 @@
-import { isBoolean } from "../utils"
+import { isBoolean } from "../utils/index"
 import { ShapeFlags } from "./vnode"
 
 export function render(vnode,container){
@@ -56,7 +56,7 @@ function mountProps(props,el){
                     el[key]=value
                 } else {
                     //移除属性
-                    if(value==nulll || value===false){
+                    if(value==null || value===false){
                         el.removeAttribute(key)
                     }else{
                         el.setAttribute(key,value)
