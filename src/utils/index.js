@@ -18,3 +18,6 @@ export function isString(target){
 export function isNumber(target){
     return Number.isNumber(target)
 }
+export function isBoolean(target){
+    return typeof target ==='boolean'
+}
