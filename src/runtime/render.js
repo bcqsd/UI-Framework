@@ -60,7 +60,11 @@ function processText(n1,n2,container){
 }
 
 function processFragment(n1,n2,container){
-
+    if(n1){
+       patchChildren(n1,n2,container)
+    }else{
+        mountChildren(n2.children,container)
+    }
 }
 
 function processElement(n1,n2,container){
@@ -77,10 +81,6 @@ function patchElement(n1,n2){
       patchChildren(n1,n2,n2.el)
 }
 
-function patchChildren(n1,n2,el){
-    
-}
-
 function mountTextNode(vnode,container){
     const textNode=document.createTextNode(vnode.children)
         container.appendChild(textNode)
@@ -88,21 +88,64 @@ function mountTextNode(vnode,container){
 }
 
 function mountElement(vnode,container){
-    const {type,props}=vnode
+    const {type,props,shapeFlag,children}=vnode
     const el=document.createElement(type)
     patchProps(null,props,el)
+    if(shapeFlag&ShapeFlags.TEXT_CHILDREN){
+        mountTextNode(vnode,el)
+    }else if(shapeFlag&ShapeFlags.ARRAY_CHILDREN){
+        mountChildren(children,el)
+    }
     mountChildren(vnode,el)
     container.appendChild(el)
     vnode.el=el
 }
-
-function mountChildren(vnode,container){
-    const {shapeFlag}=vnode
-    if(shapeFlag & ShapeFlags.TEXT_CHILDREN) mountText(vnode,container)
-    else if(shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-        vnode.children.forEach(child=>{
+//只处理数组类型的children
+function mountChildren(children,container){
+           children.forEach(child=>{
             //递归挂载children
             patch(null,child,container)
         })
-    }
+}
+
+function patchChildren(n1,n2,container){
+      const {shapeFlag:prevShapeFlag,children:c1} =n1
+      const {shapeFlag:shapeFlag,children:c2} =n2
+      if(shapeFlag&ShapeFlags.TEXT_CHILDREN){
+        if(prevShapeFlag&ShapeFlags.ARRAY_CHILDREN) unmountChildren(c1)
+        container.textContent=c2
+      }else if(shapeFlag&ShapeFlags.ARRAY_CHILDREN){
+        if(prevShapeFlag&ShapeFlags.TEXT_CHILDREN){
+              container.textContent=''
+              mountChildren(c2,container)  
+        }else if(prevShapeFlag&ShapeFlags.ARRAY_CHILDREN){
+             patchArrayChildren(c1,c2,container)
+        }else{
+            mountChildren(c2,container)
+        }
+      }else{
+        if(prevShapeFlag&ShapeFlags.TEXT_CHILDREN){
+             container.textContent=''
+        }else if(prevShapeFlag&ShapeFlags.ARRAY_CHILDREN){
+            unmountChildren(c1)
+        }
+      }
+}
+
+function unmountChildren(children){
+   children.forEach(child=>unmount(child))
+}
+
+function patchArrayChildren(c1,c2,container){
+  const oldLength=c1.length 
+  const newLength=c2.length 
+  const commonLength=Math.min(oldLength,newLength)
+  for(let i=0;i<commonLength;++i){
+      patch(c1[i],c2[i],container)
+  }
+  if(oldLength>newLength){
+      unmountChildren(c1.slice(commonLength))
+  }else if(oldLength<newLength){
+      mountChildren(c2.slice(commonLength),container)
+  }
 }
