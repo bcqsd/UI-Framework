@@ -121,10 +121,21 @@ function render(vnode,container){
 function unmount(vnode){
     const {shapeFlag}=vnode;
     if(shapeFlag&ShapeFlags.COMPONENT) ;
-    else if(shapeFlag&ShapeFlags.FRAGMENT) ;
+    else if(shapeFlag&ShapeFlags.FRAGMENT) unmountFragment(vnode);
     else {
         el.parentNode.removeChild(el);
     }
+}
+
+function unmountFragment(vnode){
+     const {el:cur,anchor:end}=vnode;
+     const {parentNode}=cur;
+     while(cur!==end){
+         let next=cur.nextSibling;
+         parentNode.removeChild(cur);
+         cur=next;
+     }
+     parentNode.removeChild(end);
 }
 
 function patch(n1,n2,container,anchor){

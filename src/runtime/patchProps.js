@@ -1,4 +1,4 @@
-
+import { isBoolean } from "../utils"
 const domPropsRE=/[A-Z]|^(value|checked|selected|muted|disabled)$/
 
 

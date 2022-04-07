@@ -30,7 +30,14 @@ function processComponent(n1,n2,container,anchor){
 }
 
 function unmountFragment(vnode){
-
+     const {el:cur,anchor:end}=vnode
+     const {parentNode}=cur
+     while(cur!==end){
+         let next=cur.nextSibling;
+         parentNode.removeChild(cur)
+         cur=next
+     }
+     parentNode.removeChild(end)
 }
 
 function patch(n1,n2,container,anchor){
