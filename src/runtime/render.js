@@ -1,4 +1,5 @@
 import { ShapeFlags } from "./vnode"
+import { patchProps } from "./patchProps"
 
 export function render(vnode,container){
    const prevVnode=container._vnode
@@ -70,12 +71,14 @@ function processElement(n1,n2,container){
      }
 }
 
-function patchElement(n1,n2,container){
-      if(n1){
+function patchElement(n1,n2){
+      n2.el=n1.el
+      patchProps(n1.props,n2.props,n2.el)
+      patchChildren(n1,n2,n2.el)
+}
 
-      }else{
-          mountElement(n2,container)
-      }
+function patchChildren(n1,n2,el){
+    
 }
 
 function mountTextNode(vnode,container){
@@ -87,47 +90,12 @@ function mountTextNode(vnode,container){
 function mountElement(vnode,container){
     const {type,props}=vnode
     const el=document.createElement(type)
-    mountProps(props,el)
+    patchProps(null,props,el)
     mountChildren(vnode,el)
     container.appendChild(el)
     vnode.el=el
 }
 
-const domPropsRE=/[A-Z]|^(value|checked|selected|muted|disabled)$/
-function mountProps(props,el){
-    for(const key in props){
-        const value=props[key]
-        switch (key) {
-            case 'class':
-                el.className=value
-                break;
-            case 'style':
-                for(const styleName in value){
-                    el.style[styleName]=value[styleName]
-                }        
-                break;
-            default:
-                //事件 例如onClick
-                if(/^on[A-Z]/.test(key)){
-                   const eventName=key.slice(2).toLowerCase()
-                   el.addEventListener(eventName,value)
-                   //原生标准prop属性
-                } else if(domPropsRE.test(key)){
-                     //  只写属性默认true
-                    if(value===''&&isBoolean(el[key])) value=true
-                    el[key]=value
-                } else {
-                    //移除属性
-                    if(value==null || value===false){
-                        el.removeAttribute(key)
-                    }else{
-                        el.setAttribute(key,value)
-                    }
-                }
-                break;
-        }
-    }
-}
 function mountChildren(vnode,container){
     const {shapeFlag}=vnode
     if(shapeFlag & ShapeFlags.TEXT_CHILDREN) mountText(vnode,container)
