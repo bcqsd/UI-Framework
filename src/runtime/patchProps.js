@@ -1,4 +1,4 @@
-import { isBoolean } from "../utils"
+import { isBoolean } from "../utils/index"
 const domPropsRE=/[A-Z]|^(value|checked|selected|muted|disabled)$/
 
 
@@ -11,18 +11,18 @@ export function patchProps(oldProps,newProps,el){
          const prev=oldProps[key]
        if(prev!==next)  patchDomProp(prev,next,key,el)
      }    
-      for(const key in oldProps){
+    for(const key in oldProps){
           if(newProps[key]==null){
               patchDomProp(oldProps[key],null,key,el)
           }
-      }    
+    }    
 }
 
 function patchDomProp(prev,next,key,el){
         switch (key) {
             case 'class':
                 el.className=next || ""
-                break;
+                break;  
             case 'style':
                 if(prev){
                     //移除不存在于next上的styleName
