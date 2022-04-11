@@ -138,7 +138,12 @@ function patchChildren(n1,n2,container,anchor){
               container.textContent=''
               mountChildren(c2,container,anchor)  
         }else if(prevShapeFlag&ShapeFlags.ARRAY_CHILDREN){
-             patchArrayChildren(c1,c2,container,anchor)
+            if(c1[0]&&c1[0].key!=null &&c2[0]&&c2[0].key!=null){
+                patchKeyedChildren(c1,c2,container,anchor)
+            }
+            else{
+                patchUnkeyedChildren(c1,c2,container,anchor)
+            }
         }else{
             mountChildren(c2,container,anchor)
         }
@@ -150,8 +155,35 @@ function patchChildren(n1,n2,container,anchor){
         }
       }
 }
+//核心diff算法
+function patchKeyedChildren(c1, c2, container, anchor) {
+    const map = new Map();
+    c1.forEach((prev, j) => {
+      map.set(prev.key, { prev, j });
+    });
+    let maxNewIndexSoFar = 0;
+    for (let i = 0; i < c2.length; i++) {
+      const next = c2[i];
+      const curAnchor = i === 0 ? c1[0].el : c2[i - 1].el.nextSibling;
+      if (map.has(next.key)) {
+        const { prev, j } = map.get(next.key);
+        patch(prev, next, container, anchor);
+        if (j < maxNewIndexSoFar) {
+          container.insertBefore(next.el, curAnchor);
+        } else {
+          maxNewIndexSoFar = j;
+        }
+        map.delete(next.key);
+      } else {
+        patch(null, next, container, curAnchor);
+      }
+    }
+    map.forEach(({ prev }) => {
+      unmount(prev);
+    });
+  }
 
-function patchArrayChildren(c1,c2,container,anchor){
+function patchUnkeyedChildren(c1,c2,container,anchor){
   const oldLength=c1.length 
   const newLength=c2.length 
   const commonLength=Math.min(oldLength,newLength)
