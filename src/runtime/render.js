@@ -1,6 +1,6 @@
 import { ShapeFlags } from "./vnode"
 import { patchProps } from "./patchProps"
-import {mountComponent} from './component'
+import { mountComponent } from "./component"
 export function render(vnode,container){
    const prevVnode=container._vnode
    if(!vnode){
@@ -49,9 +49,11 @@ function processComponent(n1,n2,container,anchor){
        if(n1){
 
        }else{
-         mountComponent(n2,container,anchor)
+         mountComponent(n2,container,anchor,patch)
        }
 }
+
+
 //fragment对应处理
 function unmountFragment(vnode){
      const {el:cur,anchor:end}=vnode

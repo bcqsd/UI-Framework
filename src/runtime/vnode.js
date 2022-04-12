@@ -1,4 +1,4 @@
-import { isArray, isObject, isString } from "../utils/index"
+import { isArray, isObject, isString,isNumber } from "../utils/index"
 
 export const ShapeFlags={
     ELEMENT:1,
@@ -15,7 +15,7 @@ export const Fragment=Symbol('Fragment')
  * 
  * @param {string | Object | Text | Fragment} type  'div' Component Text Fragment 
  * @param {Object | null} props 
- * @param {string | array | null} children 
+ * @param {string | array | number | null} children 
  * @returns  VNode
  */
 export function h(type,props,children){
@@ -24,7 +24,7 @@ export function h(type,props,children){
     else if(type ===Text) shapeFlag=ShapeFlags.TEXT
     else if(type===Fragment) shapeFlag=ShapeFlags.FRAGMENT
     else shapeFlag=ShapeFlags.COMPONENT
-
+     if(isNumber(children))  children=children.toString()
     if(isString(children)) shapeFlag|=ShapeFlags.TEXT_CHILDREN
     else if(isArray(children)) shapeFlag |=ShapeFlags.ARRAY_CHILDREN
     return {
@@ -37,10 +37,13 @@ export function h(type,props,children){
     }
 }
 
-export function normlizeVNode(result){
-    if(isArray(result)){
-        return h(Fragment,null,result)
+export function normalizeVNode(result) {
+    if (isArray(result)) {
+      return h(Fragment, null, result);
     }
-    if(isObject(result)) return result
-    return h(Text,null,result.toString())
-}
+    if (isObject(result)) {
+      return result;
+    }
+    // string, number
+    return h(Text, null, result.toString());
+  }

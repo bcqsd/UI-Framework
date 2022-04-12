@@ -11,6 +11,7 @@ export function effect(fn,options){
           effectStack.pop()
        }
    }
+   options=options || {}
    //初始化执行，收集依赖
   if(!options.lazy)  effectFn()
   if(options.scheduler) effectFn.scheduler=options.scheduler

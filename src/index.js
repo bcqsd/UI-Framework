@@ -1,17 +1,32 @@
-import {Fragment, h, render,Text} from './runtime/index.js'
+import { render, h, Text, Fragment } from './runtime/index';
+import { ref } from './reactive/index';
 
-const Comp={
-    props:['foo'],
-    render(ctx){
-        return h('div',{class:'a',id:ctx.bar},ctx.foo)
-    }
-}
+const Comp = {
+  setup() {
+    const count = ref(0);
+    const add = () => {
+      count.value++;
+      console.log(count.value);
+    };
+    return {
+      count,
+      add,
+    };
+  },
+  render(ctx) {
+      console.log(ctx.count.value)
+    return [
+      h('div', null, ctx.count.value),
+      h(
+        'button',
+        {
+          onClick: ctx.add,
+        },
+        'add'
+      ),
+    ];
+  },
+};
 
-const vnodeProp={
-    foo:'foo',
-    bar:'bar'
-}
-
-const vnode=h(Comp,vnodeProp)
-
-render(vnode,document.body)
+const vnode = h(Comp);
+render(vnode, document.body); // 渲染为<div class="a" bar="bar">foo</div>

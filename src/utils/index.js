@@ -16,7 +16,7 @@ export function isString(target){
     return typeof target ==='string'
 }
 export function isNumber(target){
-    return Number.isNumber(target)
+    return typeof target ==='number'
 }
 export function isBoolean(target){
     return typeof target ==='boolean'

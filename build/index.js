@@ -14,6 +14,9 @@ function hasChanged(oldValue,value){
 function isString(target){
     return typeof target ==='string'
 }
+function isNumber(target){
+    return typeof target ==='number'
+}
 function isBoolean(target){
     return typeof target ==='boolean'
 }
@@ -33,7 +36,7 @@ const Fragment=Symbol('Fragment');
  * 
  * @param {string | Object | Text | Fragment} type  'div' Component Text Fragment 
  * @param {Object | null} props 
- * @param {string | array | null} children 
+ * @param {string | array | number | null} children 
  * @returns  VNode
  */
 function h(type,props,children){
@@ -42,7 +45,7 @@ function h(type,props,children){
     else if(type ===Text) shapeFlag=ShapeFlags.TEXT;
     else if(type===Fragment) shapeFlag=ShapeFlags.FRAGMENT;
     else shapeFlag=ShapeFlags.COMPONENT;
-
+     if(isNumber(children))  children=children.toString();
     if(isString(children)) shapeFlag|=ShapeFlags.TEXT_CHILDREN;
     else if(isArray(children)) shapeFlag |=ShapeFlags.ARRAY_CHILDREN;
     return {
@@ -55,13 +58,16 @@ function h(type,props,children){
     }
 }
 
-function normlizeVNode(result){
-    if(isArray(result)){
-        return h(Fragment,null,result)
+function normalizeVNode(result) {
+    if (isArray(result)) {
+      return h(Fragment, null, result);
     }
-    if(isObject(result)) return result
-    return h(Text,null,result.toString())
-}
+    if (isObject(result)) {
+      return result;
+    }
+    // string, number
+    return h(Text, null, result.toString());
+  }
 
 const domPropsRE=/[A-Z]|^(value|checked|selected|muted|disabled)$/;
 
@@ -125,6 +131,23 @@ function patchDomProp(prev,next,key,el){
 }
 
 let effectStack=[];
+
+function effect(fn,options){
+   const effectFn= ()=>{
+       try{
+         effectStack.push(effectFn);
+         return fn()
+       }
+       finally{
+          effectStack.pop();
+       }
+   };
+   options=options || {};
+   //初始化执行，收集依赖
+  if(!options.lazy)  effectFn();
+  if(options.scheduler) effectFn.scheduler=options.scheduler;
+   return effectFn
+}
 /**
  * {
  *   reactiveTarget:{
@@ -213,44 +236,96 @@ function isReactive(target){
      return target.__isReactive
 }
 
-function initProps(instance,vnode){
-    const {type:Component,props:vnodeProps}=vnode;
-    const props=instance.props={};
-    const attrs=instance.attrs={};
-    //将vnode上的属性挂载到instance上的props或attrs上
-    for(const key in vnodeProps){
-        if(Component.props?.includes(key)){
-            props[key]=vnodeProps[key];
-        }else {
-            attrs[key]=vnodeProps[key];
-        }
-    }
-    instance.props=reactive(instance.props);
+function ref(value){
+   return reactive({value:value})
 }
 
+function updateProps(instance, vnode) {
+  const { type: Component, props: vnodeProps } = vnode;
+  const props = (instance.props = {});
+  const attrs = (instance.attrs = {});
+  for (const key in vnodeProps) {
+    if (Component.props?.includes(key)) {
+      props[key] = vnodeProps[key];
+    } else {
+      attrs[key] = vnodeProps[key];
+    }
+  }
 
-function mountComponent(vnode,container,anchor){
-   const {type:Component}=vnode;
-   const instance={
-       props:null,
-       attrs:null,
-       setupState:null,
-       ctx:null,
-       mount:null
-   };
-   initProps(instance,vnode);
-   instance.setupState=Component.setup?.(instance.props,{attrs:instance.attrs});
-   instance.ctx={
-       ...instance.props,
-       ...instance.setupState
-   };
-   instance.mount=()=>{
-      const subTree= normlizeVNode(
+  instance.props = reactive(instance.props);
+}
+
+function fallThrough(instance, subTree) {
+  if (Object.keys(instance.attrs).length) {
+    subTree.props = {
+      ...subTree.props,
+      ...instance.attrs,
+    };
+  }
+}
+
+function mountComponent(vnode, container, anchor, patch) {
+  const { type: Component } = vnode;
+
+  const instance = (vnode.component = {
+    props: null,
+    attrs: null,
+    setupState: null,
+    ctx: null,
+    subTree: null,
+    isMounted: false,
+    update: null,
+    next: null,
+  });
+
+  updateProps(instance, vnode);
+
+  instance.setupState = Component.setup?.(instance.props, {
+    attrs: instance.attrs,
+  });
+
+  instance.ctx = {
+    ...instance.props,
+    ...instance.setupState,
+  };
+
+  instance.update = effect(() => {
+    if (!instance.isMounted) {
+      // mount
+      const subTree = (instance.subTree = normalizeVNode(
         Component.render(instance.ctx)
-       );
-      patch(null,subTree,container,anchor);
-   };
-   instance.mount();
+      ));
+
+      fallThrough(instance, subTree);
+
+      patch(null, subTree, container, anchor);
+      vnode.el = subTree.el;
+      instance.isMounted = true;
+    } else {
+      // update
+
+      if (instance.next) {
+        // 被动更新
+        vnode = instance.next;
+        instance.next = null;
+        updateProps(instance, vnode);
+        instance.ctx = {
+          ...instance.props,
+          ...instance.setupState,
+        };
+      }
+
+      const prev = instance.subTree;
+      const subTree = (instance.subTree = normalizeVNode(
+        Component.render(instance.ctx)
+      ));
+
+      fallThrough(instance, subTree);
+
+      patch(prev, subTree, container, anchor);
+      vnode.el = subTree.el;
+    }
+  });
 }
 
 function render(vnode,container){
@@ -294,9 +369,11 @@ function isSameVnode(n1,n2){
 
 function processComponent(n1,n2,container,anchor){
        if(n1);else {
-         mountComponent(n2,container,anchor);
+         mountComponent(n2,container,anchor,patch);
        }
 }
+
+
 //fragment对应处理
 function unmountFragment(vnode){
      const {el:cur,anchor:end}=vnode;
@@ -450,18 +527,32 @@ function patchKeyedChildren(c1, c2, container, anchor) {
     });
   }
 
-const Comp={
-    props:['foo'],
-    render(ctx){
-        return h('div',{class:'a',id:ctx.bar},ctx.foo)
-    }
+const Comp = {
+  setup() {
+    const count = ref(0);
+    const add = () => {
+      count.value++;
+      console.log(count.value);
+    };
+    return {
+      count,
+      add,
+    };
+  },
+  render(ctx) {
+      console.log(ctx.count.value);
+    return [
+      h('div', null, ctx.count.value),
+      h(
+        'button',
+        {
+          onClick: ctx.add,
+        },
+        'add'
+      ),
+    ];
+  },
 };
 
-const vnodeProp={
-    foo:'foo',
-    bar:'bar'
-};
-
-const vnode=h(Comp,vnodeProp);
-
-render(vnode,document.body);
+const vnode = h(Comp);
+render(vnode, document.body); // 渲染为<div class="a" bar="bar">foo</div>
