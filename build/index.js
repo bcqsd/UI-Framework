@@ -1,7 +1,14 @@
 'use strict';
 
+function isObject(target){
+    return typeof target==='object' &&target!==null
+}
+
 function isArray(target){
     return Array.isArray(target)
+}
+function hasChanged(oldValue,value){
+    return oldValue!==value && !(Number.isNaN(oldValue)&&Number.isNaN(value))
 }
 
 function isString(target){
@@ -46,6 +53,14 @@ function h(type,props,children){
         el:null,
         anchor:null
     }
+}
+
+function normlizeVNode(result){
+    if(isArray(result)){
+        return h(Fragment,null,result)
+    }
+    if(isObject(result)) return result
+    return h(Text,null,result.toString())
 }
 
 const domPropsRE=/[A-Z]|^(value|checked|selected|muted|disabled)$/;
@@ -109,6 +124,135 @@ function patchDomProp(prev,next,key,el){
         }
 }
 
+let effectStack=[];
+/**
+ * {
+ *   reactiveTarget:{
+ *         key: Set(depsFn)    
+ *      }  
+ * }
+ */
+const targetMap=new WeakMap();
+
+function track(target,key){
+    if(!effectStack.length) {
+      //说明get操作并不是尚未被监视的activeFn引起，而是set操作导致的重新get
+        return
+    }
+    let depsMap=targetMap.get(target);
+    if(!depsMap) targetMap.set(target,(depsMap=new Map()));
+    let deps=depsMap.get(key);
+    if(!deps) depsMap.set(key,(deps=new Set()));
+    deps.add(effectStack[effectStack.length-1]);
+}
+function trigger(target,key){
+   const depsMap=targetMap.get(target);
+   if(!depsMap) {
+     //说明当前target还没有被副作用函数或computed函数依赖
+      return 
+   }
+   const deps=depsMap.get(key);
+   if(!deps) {
+    //  console.warn(`${key} has not been tracked`) 
+    return
+   }
+   deps.forEach(effectFn=>{
+      if(effectFn.scheduler) {
+        effectFn.scheduler();
+      }else {
+        effectFn();
+      }
+   });
+}
+
+/**
+ *  function reactive(target) : set proxy on an object, tracker the active effect
+ *  when be getted and trigger the effects in effect list
+ * 
+ */
+const proxyMap=new WeakMap();
+
+function reactive(target){
+    // 检查对同一个对象的代理 a=reactive(obj) b=reactiveobj a===b
+    if(proxyMap.has(target)) {
+        return proxyMap.get(target)
+    }
+    if(!isObject(target)) {
+        console.warn('target is not an object');
+        return target
+    }
+    //检查重复代理 reactive(reactiveObj)=reactiveObj
+    if(isReactive(target)) {
+        return target
+    }
+    const proxy=new Proxy(target,{
+        get(target,key,receiver){
+            if(key=='__isReactive'){
+                return true
+            }
+           const res=Reflect.get(target,key,receiver);
+           track(target,key);
+           //对象深层代理
+           return isObject(res)?reactive(res):res
+        },
+        set(target,key,value,receiver){
+           const oldValue=Reflect.get(target,key,receiver);
+           if(key!=='length'&&!hasChanged(oldValue,value)){
+               return true
+           }         
+           const res=Reflect.set(target,key,value,receiver);
+           trigger(target,key);
+           return res
+        }
+    });
+    proxyMap.set(target,proxy);
+    return proxy
+}
+//特殊代理key并不真实存在
+function isReactive(target){
+     return target.__isReactive
+}
+
+function initProps(instance,vnode){
+    const {type:Component,props:vnodeProps}=vnode;
+    const props=instance.props={};
+    const attrs=instance.attrs={};
+    //将vnode上的属性挂载到instance上的props或attrs上
+    for(const key in vnodeProps){
+        if(Component.props?.includes(key)){
+            props[key]=vnodeProps[key];
+        }else {
+            attrs[key]=vnodeProps[key];
+        }
+    }
+    instance.props=reactive(instance.props);
+}
+
+
+function mountComponent(vnode,container,anchor){
+   const {type:Component}=vnode;
+   const instance={
+       props:null,
+       attrs:null,
+       setupState:null,
+       ctx:null,
+       mount:null
+   };
+   initProps(instance,vnode);
+   instance.setupState=Component.setup?.(instance.props,{attrs:instance.attrs});
+   instance.ctx={
+       ...instance.props,
+       ...instance.setupState
+   };
+   instance.mount=()=>{
+      const subTree= normlizeVNode(
+        Component.render(instance.ctx)
+       );
+      patch(null,subTree,container,anchor);
+   };
+   instance.mount();
+}
+
 function render(vnode,container){
    const prevVnode=container._vnode;
    if(!vnode){
@@ -127,7 +271,7 @@ function patch(n1,n2,container,anchor){
         n1=null;
     }
    const {shapeFlag} =n2;
-   if(shapeFlag&ShapeFlags.COMPONENT) ;
+   if(shapeFlag&ShapeFlags.COMPONENT) processComponent(n1,n2,container,anchor);
    else if(shapeFlag&ShapeFlags.TEXT) processText(n1,n2,container,anchor);
    else if(shapeFlag&ShapeFlags.FRAGMENT) processFragment(n1,n2,container,anchor);
    else if(shapeFlag&ShapeFlags.ELEMENT) processElement(n1,n2,container,anchor);
@@ -146,6 +290,12 @@ function unmount(vnode){
 
 function isSameVnode(n1,n2){
     return n1.type===n2.type
+}
+
+function processComponent(n1,n2,container,anchor){
+       if(n1);else {
+         mountComponent(n2,container,anchor);
+       }
 }
 //fragment对应处理
 function unmountFragment(vnode){
@@ -237,7 +387,12 @@ function patchChildren(n1,n2,container,anchor){
               container.textContent='';
               mountChildren(c2,container,anchor);  
         }else if(prevShapeFlag&ShapeFlags.ARRAY_CHILDREN){
-             patchArrayChildren(c1,c2,container,anchor);
+            if(c1[0]&&c1[0].key!=null &&c2[0]&&c2[0].key!=null){
+                patchKeyedChildren(c1,c2,container,anchor);
+            }
+            else {
+                patchUnkeyedChildren(c1,c2,container,anchor);
+            }
         }else {
             mountChildren(c2,container,anchor);
         }
@@ -249,8 +404,7 @@ function patchChildren(n1,n2,container,anchor){
         }
       }
 }
-
-function patchArrayChildren(c1,c2,container,anchor){
+function patchUnkeyedChildren(c1,c2,container,anchor){
   const oldLength=c1.length; 
   const newLength=c2.length; 
   const commonLength=Math.min(oldLength,newLength);
@@ -262,26 +416,52 @@ function patchArrayChildren(c1,c2,container,anchor){
   }else if(oldLength<newLength){
       mountChildren(c2.slice(commonLength),container,anchor);
   }
+  
 }
 
-render(
-    h('ul',null,[
-        h('li',null,'first'),
-        h(Fragment,null,[]),
-        h('li',null,'last'),
-    ]),
-    document.body
-);
+//朴素diff算法，根据比对新旧children list，以旧list为模板进行增删改
+function patchKeyedChildren(c1, c2, container, anchor) {
+    const map = new Map();
+    c1.forEach((prev, j) => {
+      map.set(prev.key, { prev, j });
+    });
+    let maxNewIndexSoFar = 0;
+    for (let i = 0; i < c2.length; i++) {
+      const next = c2[i];
+      //第一个插入原来的第一个之前，之后依次插入第一个后面
+      const curAnchor = i === 0 ? c1[0].el : c2[i - 1].el.nextSibling;
+      if (map.has(next.key)) {
+        const { prev, j } = map.get(next.key);
+        patch(prev, next, container, anchor);
+        if (j < maxNewIndexSoFar) {
+          //移动节点
+          container.insertBefore(next.el, curAnchor);
+        } else {
+          maxNewIndexSoFar = j;
+        }
+        map.delete(next.key);
+      } else {
+        //旧节点中没有的节点，插入curAnchor
+        patch(null, next, container, curAnchor);
+      }
+    }
+    map.forEach(({ prev }) => {
+      unmount(prev);
+    });
+  }
 
-setTimeout(()=>{
-    render(
-        h('ul',null,[
-            h('li',null,'first'),
-            h(Fragment,null,[
-                h('li',null,'middle')
-            ]),
-            h('li',null,'last'),
-        ]),
-        document.body
-    );
-},2000);
+const Comp={
+    props:['foo'],
+    render(ctx){
+        return h('div',{class:'a',id:ctx.bar},ctx.foo)
+    }
+};
+
+const vnodeProp={
+    foo:'foo',
+    bar:'bar'
+};
+
+const vnode=h(Comp,vnodeProp);
+
+render(vnode,document.body);

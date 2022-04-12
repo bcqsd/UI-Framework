@@ -1,6 +1,6 @@
 import { ShapeFlags } from "./vnode"
 import { patchProps } from "./patchProps"
-
+import {mountComponent} from './component'
 export function render(vnode,container){
    const prevVnode=container._vnode
    if(!vnode){
@@ -12,7 +12,7 @@ export function render(vnode,container){
    }
    container._vnode=vnode
 }
-function patch(n1,n2,container,anchor){
+export function patch(n1,n2,container,anchor){
     if(n1&&!isSameVnode(n1,n2)){
         anchor=(n1.anchor||n1.el).nextSibling
         unmount(n1)
@@ -46,7 +46,11 @@ function unmountComponent(vnode){
 }
 
 function processComponent(n1,n2,container,anchor){
-       
+       if(n1){
+
+       }else{
+         mountComponent(n2,container,anchor)
+       }
 }
 //fragment对应处理
 function unmountFragment(vnode){
@@ -155,34 +159,6 @@ function patchChildren(n1,n2,container,anchor){
         }
       }
 }
-//核心diff算法
-function patchKeyedChildren(c1, c2, container, anchor) {
-    const map = new Map();
-    c1.forEach((prev, j) => {
-      map.set(prev.key, { prev, j });
-    });
-    let maxNewIndexSoFar = 0;
-    for (let i = 0; i < c2.length; i++) {
-      const next = c2[i];
-      const curAnchor = i === 0 ? c1[0].el : c2[i - 1].el.nextSibling;
-      if (map.has(next.key)) {
-        const { prev, j } = map.get(next.key);
-        patch(prev, next, container, anchor);
-        if (j < maxNewIndexSoFar) {
-          container.insertBefore(next.el, curAnchor);
-        } else {
-          maxNewIndexSoFar = j;
-        }
-        map.delete(next.key);
-      } else {
-        patch(null, next, container, curAnchor);
-      }
-    }
-    map.forEach(({ prev }) => {
-      unmount(prev);
-    });
-  }
-
 function patchUnkeyedChildren(c1,c2,container,anchor){
   const oldLength=c1.length 
   const newLength=c2.length 
@@ -197,6 +173,38 @@ function patchUnkeyedChildren(c1,c2,container,anchor){
   }
   
 }
+
+//朴素diff算法，根据比对新旧children list，以旧list为模板进行增删改
+function patchKeyedChildren(c1, c2, container, anchor) {
+    const map = new Map();
+    c1.forEach((prev, j) => {
+      map.set(prev.key, { prev, j });
+    });
+    let maxNewIndexSoFar = 0;
+    for (let i = 0; i < c2.length; i++) {
+      const next = c2[i];
+      //第一个插入原来的第一个之前，之后依次插入第一个后面
+      const curAnchor = i === 0 ? c1[0].el : c2[i - 1].el.nextSibling;
+      if (map.has(next.key)) {
+        const { prev, j } = map.get(next.key);
+        patch(prev, next, container, anchor);
+        if (j < maxNewIndexSoFar) {
+          //移动节点
+          container.insertBefore(next.el, curAnchor);
+        } else {
+          maxNewIndexSoFar = j;
+        }
+        map.delete(next.key);
+      } else {
+        //旧节点中没有的节点，插入curAnchor
+        patch(null, next, container, curAnchor);
+      }
+    }
+    map.forEach(({ prev }) => {
+      unmount(prev);
+    });
+  }
+
 
 //核心diff算法
 function patchKeyedChildren2(c1, c2, container, anchor) {

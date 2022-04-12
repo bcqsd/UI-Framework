@@ -1,4 +1,4 @@
-import { isArray, isString } from "../utils/index"
+import { isArray, isObject, isString } from "../utils/index"
 
 export const ShapeFlags={
     ELEMENT:1,
@@ -35,4 +35,12 @@ export function h(type,props,children){
         el:null,
         anchor:null
     }
+}
+
+export function normlizeVNode(result){
+    if(isArray(result)){
+        return h(Fragment,null,result)
+    }
+    if(isObject(result)) return result
+    return h(Text,null,result.toString())
 }

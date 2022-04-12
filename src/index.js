@@ -1,23 +1,17 @@
 import {Fragment, h, render,Text} from './runtime/index.js'
 
-render(
-    h('ul',null,[
-        h('li',null,'first'),
-        h(Fragment,null,[]),
-        h('li',null,'last'),
-    ]),
-    document.body
-)
+const Comp={
+    props:['foo'],
+    render(ctx){
+        return h('div',{class:'a',id:ctx.bar},ctx.foo)
+    }
+}
 
-setTimeout(()=>{
-    render(
-        h('ul',null,[
-            h('li',null,'first'),
-            h(Fragment,null,[
-                h('li',null,'middle')
-            ]),
-            h('li',null,'last'),
-        ]),
-        document.body
-    )
-},2000)
+const vnodeProp={
+    foo:'foo',
+    bar:'bar'
+}
+
+const vnode=h(Comp,vnodeProp)
+
+render(vnode,document.body)
