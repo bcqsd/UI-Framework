@@ -242,7 +242,7 @@ function ref(value){
 
 const queue=[];
 let isFlushing=false;
-
+let currentFlushPromise=null;
 function queueJob(job){
     if(!queue.length||!queue.includes(job)){
         queue.push(job);
@@ -254,7 +254,7 @@ function queueJob(job){
 }
 
 function queueFlush(){
-    Promise.resolve().then(flushJobs);
+   currentFlushPromise=Promise.resolve().then(flushJobs);
 }
 function flushJobs(){
     try{
@@ -264,7 +264,15 @@ function flushJobs(){
     }finally{
         isFlushing=false;
         queue.length=0;
+        currentFlushPromise=null;
     }
+}
+
+function nextTick(fn){
+    //如果执行钩子的时候任务队列为空，直接放到微任务队列，否则放到当前执行的微任务的微任务队列
+    const p=currentFlushPromise || Promise.resolve();
+    //支持 await nextTick()
+    return fn?p.then(fn):p
 }
 
 function updateProps(instance, vnode) {
@@ -556,6 +564,18 @@ function patchKeyedChildren(c1, c2, container, anchor) {
     });
   }
 
+function createApp(rootComponent){
+    const app={
+        mount(rootContainer){
+            if(isString(rootContainer)){
+                rootContainer=document.querySelector(rootContainer);
+            }
+            render(h(rootComponent),rootContainer);
+        }
+    };
+    return app
+}
+
 const Comp = {
   setup() {
     const count = ref(0);
@@ -572,11 +592,12 @@ const Comp = {
   render(ctx) {
       console.log('111');
     return [
-      h('div', null, ctx.count.value),
+      h('div', {id:'div'}, ctx.count.value),
       h(
         'button',
         {
           onClick: ctx.add,
+          id:'btn'
         },
         'add'
       ),
@@ -584,5 +605,10 @@ const Comp = {
   },
 };
 
-const vnode = h(Comp);
-render(vnode, document.body); // 渲染为<div class="a" bar="bar">foo</div>
+createApp(Comp).mount(document.body);
+const div=document.getElementById('div');
+const btn=document.getElementById('btn');
+btn.click();
+nextTick(()=>{
+  console.log(div.innerHTML);
+});

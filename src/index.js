@@ -1,4 +1,4 @@
-import { render, h, Text, Fragment } from './runtime/index';
+import { render, h, Text, Fragment,nextTick,createApp } from './runtime/index';
 import { ref } from './reactive/index';
 
 const Comp = {
@@ -17,11 +17,12 @@ const Comp = {
   render(ctx) {
       console.log('111')
     return [
-      h('div', null, ctx.count.value),
+      h('div', {id:'div'}, ctx.count.value),
       h(
         'button',
         {
           onClick: ctx.add,
+          id:'btn'
         },
         'add'
       ),
@@ -29,5 +30,10 @@ const Comp = {
   },
 };
 
-const vnode = h(Comp);
-render(vnode, document.body); // 渲染为<div class="a" bar="bar">foo</div>
+createApp(Comp).mount(document.body)
+const div=document.getElementById('div')
+const btn=document.getElementById('btn')
+btn.click()
+nextTick(()=>{
+  console.log(div.innerHTML)
+})
