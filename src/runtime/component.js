@@ -1,6 +1,6 @@
 import { reactive, effect } from '../reactive/index';
 import {normalizeVNode} from './vnode'
-
+import {queueJob} from './scheduler'
 function updateProps(instance, vnode) {
   const { type: Component, props: vnodeProps } = vnode;
   const props = (instance.props = {});
@@ -86,5 +86,7 @@ export function mountComponent(vnode, container, anchor, patch) {
       patch(prev, subTree, container, anchor);
       vnode.el = subTree.el;
     }
+  },{
+    scheduler:queueJob
   });
 }

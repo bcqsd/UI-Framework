@@ -6,7 +6,8 @@ const Comp = {
     const count = ref(0);
     const add = () => {
       count.value++;
-      console.log(count.value);
+      count.value++;
+      count.value++;
     };
     return {
       count,
@@ -14,7 +15,7 @@ const Comp = {
     };
   },
   render(ctx) {
-      console.log(ctx.count.value)
+      console.log('111')
     return [
       h('div', null, ctx.count.value),
       h(

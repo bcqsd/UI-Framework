@@ -181,7 +181,7 @@ function trigger(target,key){
    }
    deps.forEach(effectFn=>{
       if(effectFn.scheduler) {
-        effectFn.scheduler();
+        effectFn.scheduler(effectFn);
       }else {
         effectFn();
       }
@@ -238,6 +238,33 @@ function isReactive(target){
 
 function ref(value){
    return reactive({value:value})
+}
+
+const queue=[];
+let isFlushing=false;
+
+function queueJob(job){
+    if(!queue.length||!queue.includes(job)){
+        queue.push(job);
+    }
+    if(!isFlushing){
+        queueFlush();
+        isFlushing=true;
+    }
+}
+
+function queueFlush(){
+    Promise.resolve().then(flushJobs);
+}
+function flushJobs(){
+    try{
+        for(let i=0;i<queue.length;++i){
+            queue[i]();
+        }
+    }finally{
+        isFlushing=false;
+        queue.length=0;
+    }
 }
 
 function updateProps(instance, vnode) {
@@ -325,6 +352,8 @@ function mountComponent(vnode, container, anchor, patch) {
       patch(prev, subTree, container, anchor);
       vnode.el = subTree.el;
     }
+  },{
+    scheduler:queueJob
   });
 }
 
@@ -532,7 +561,8 @@ const Comp = {
     const count = ref(0);
     const add = () => {
       count.value++;
-      console.log(count.value);
+      count.value++;
+      count.value++;
     };
     return {
       count,
@@ -540,7 +570,7 @@ const Comp = {
     };
   },
   render(ctx) {
-      console.log(ctx.count.value);
+      console.log('111');
     return [
       h('div', null, ctx.count.value),
       h(
