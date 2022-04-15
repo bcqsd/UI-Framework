@@ -34,7 +34,7 @@ function parseChildren(context) {
     const node = nodes[i]
     if (node.type === NodeTypes.TEXT) {
       if (/[^\t\r\f\n ]/.test(node.content)) {
-        node.content = node.content.replace(/[^\t\r\f\n ]+/g, ' ')
+        node.content = node.content.replace(/[\t\r\f\n ]+/g, ' ')
       } else {
         const prev = nodes[i - 1]
         const next = nodes[i + 1]
