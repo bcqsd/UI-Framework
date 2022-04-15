@@ -108,7 +108,7 @@ function parseTag(context) {
   const tag = match[1]
   advanceBy(context, match[0].length)
   advanceSpaces(context)
-  const { props } = parseAttributes(context)
+  const props = parseAttributes(context)
   const isSelfClosing = context.source.startsWith('/>')
   advanceBy(context, isSelfClosing ? 2 : 1)
   const tagType = isComponent(tag) ? ELementTypes.COMPONENT : ELementTypes.ELEMENT
@@ -153,7 +153,7 @@ function parseAttribute(context) {
     name,
     value: value && {
       type: NodeTypes.TEXT,
-      content: value.content
+      content: value
     }
   }
 }
