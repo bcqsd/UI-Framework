@@ -50,6 +50,7 @@ export function mountComponent(vnode, container, anchor, patch) {
     ...instance.props,
     ...instance.setupState,
   };
+  //模板替代render函数
   if(!Component.render && Component.template){
     const {template}=Component
     const code=compile(template)

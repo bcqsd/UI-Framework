@@ -1,5 +1,7 @@
 'use strict';
 
+Object.defineProperty(exports, '__esModule', { value: true });
+
 const NodeTypes={
     ROOT:'ROOT',
     ELEMENT:'ELEMENT',
@@ -35,15 +37,12 @@ function traverseNode(node) {
            const result=traverseChildren(node);
            return result;
         case NodeTypes.TEXT:
-          createTextVNode(node);
-            break;
+          return createTextVNode(node)
         case NodeTypes.INTERPOLATION:
             //表达式节点的content是一个有isStatic标记的text节点
-           createTextVNode(node.content);
-            break;
+          return createTextVNode(node.content)
         case NodeTypes.ELEMENT:
-        createElementVnode(node);
-            break;
+       return  createElementVnode(node)
     }
 }
 
@@ -69,7 +68,7 @@ function createElementVnode(node){
        return  `h(${tag}),${propStr}`
     }
     let childrenStr=traverseChildren(node);
-    return `h(${tag},null,${childrenStr})`
+    return `h(${tag},${propStr},${childrenStr})`
 }
 
 function traverseChildren(node){
@@ -294,7 +293,7 @@ function advanceSpaces(context) {
   }
 }
 
-function compile$1(template){
+function compile(template){
     const ast=parse(template);
     const code=generate(ast);
     return code
@@ -330,8 +329,8 @@ const ShapeFlags={
     ARRAY_CHILDREN:1<<5,
     CHILDREN:(1<<4) | (1<<5)
 };
-const Text$1=Symbol('Text');
-const Fragment$1=Symbol('Fragment');
+const Text=Symbol('Text');
+const Fragment=Symbol('Fragment');
 /**
  * 
  * @param {string | Object | Text | Fragment} type  'div' Component Text Fragment 
@@ -339,11 +338,11 @@ const Fragment$1=Symbol('Fragment');
  * @param {string | array | number | null} children 
  * @returns  VNode
  */
-function h$1(type,props,children){
+function h(type,props,children){
     let shapeFlag=0;
     if(isString(type)) shapeFlag=ShapeFlags.ELEMENT;
-    else if(type ===Text$1) shapeFlag=ShapeFlags.TEXT;
-    else if(type===Fragment$1) shapeFlag=ShapeFlags.FRAGMENT;
+    else if(type ===Text) shapeFlag=ShapeFlags.TEXT;
+    else if(type===Fragment) shapeFlag=ShapeFlags.FRAGMENT;
     else shapeFlag=ShapeFlags.COMPONENT;
      if(isNumber(children))  children=children.toString();
     if(isString(children)) shapeFlag|=ShapeFlags.TEXT_CHILDREN;
@@ -360,13 +359,13 @@ function h$1(type,props,children){
 
 function normalizeVNode(result) {
     if (isArray(result)) {
-      return h$1(Fragment$1, null, result);
+      return h(Fragment, null, result);
     }
     if (isObject(result)) {
       return result;
     }
     // string, number
-    return h$1(Text$1, null, result.toString());
+    return h(Text, null, result.toString());
   }
 
 const domPropsRE=/[A-Z]|^(value|checked|selected|muted|disabled)$/;
@@ -432,7 +431,7 @@ function patchDomProp(prev,next,key,el){
 
 let effectStack=[];
 
-function effect$1(fn,options){
+function effect(fn,options){
    const effectFn= ()=>{
        try{
          effectStack.push(effectFn);
@@ -495,7 +494,7 @@ function trigger(target,key){
  */
 const proxyMap=new WeakMap();
 
-function reactive$1(target){
+function reactive(target){
     // 检查对同一个对象的代理 a=reactive(obj) b=reactiveobj a===b
     if(proxyMap.has(target)) {
         return proxyMap.get(target)
@@ -516,7 +515,7 @@ function reactive$1(target){
            const res=Reflect.get(target,key,receiver);
            track(target,key);
            //对象深层代理
-           return isObject(res)?reactive$1(res):res
+           return isObject(res)?reactive(res):res
         },
         set(target,key,value,receiver){
            const oldValue=Reflect.get(target,key,receiver);
@@ -536,18 +535,18 @@ function isReactive(target){
      return target.__isReactive
 }
 
-function ref$1(value){
-   return reactive$1({value:value})
+function ref(value){
+   return reactive({value:value})
 }
 
-function computed$1(getter){
+function computed(getter){
     return new computedImpl(getter)
 }
 class computedImpl{
     constructor(getter){
         this.__dirty=true;
         this.__value=undefined;
-        this.__effect=effect$1(getter,{
+        this.__effect=effect(getter,{
             lazy:true,
             scheduler:()=>{
                 this.__dirty=true;
@@ -596,7 +595,7 @@ function flushJobs(){
     }
 }
 
-function nextTick$1(fn){
+function nextTick(fn){
     //如果执行钩子的时候任务队列为空，直接放到微任务队列，否则放到当前执行的微任务的微任务队列
     const p=currentFlushPromise || Promise.resolve();
     //支持 await nextTick()
@@ -615,7 +614,7 @@ function updateProps(instance, vnode) {
     }
   }
 
-  instance.props = reactive$1(instance.props);
+  instance.props = reactive(instance.props);
 }
 
 function fallThrough(instance, subTree) {
@@ -651,12 +650,13 @@ function mountComponent(vnode, container, anchor, patch) {
     ...instance.props,
     ...instance.setupState,
   };
+  //模板替代render函数
   if(!Component.render && Component.template){
     const {template}=Component;
-    const code=compile$1(template);
+    const code=compile(template);
     Component.render=new Function('ctx',code);
   }
-  instance.update = effect$1(() => {
+  instance.update = effect(() => {
     if (!instance.isMounted) {
       // mount
       const subTree = (instance.subTree = normalizeVNode(
@@ -697,7 +697,7 @@ function mountComponent(vnode, container, anchor, patch) {
   });
 }
 
-function render$1(vnode,container){
+function render(vnode,container){
    const prevVnode=container._vnode;
    if(!vnode){
        if(prevVnode){
@@ -896,46 +896,30 @@ function patchKeyedChildren(c1, c2, container, anchor) {
     });
   }
 
-function createApp$1(rootComponent){
+function createApp(rootComponent){
     const app={
         mount(rootContainer){
             if(isString(rootContainer)){
                 rootContainer=document.querySelector(rootContainer);
             }
-            render$1(h$1(rootComponent),rootContainer);
+            render(h(rootComponent),rootContainer);
         }
     };
     return app
 }
 
 const MiniVue = (window.MiniVue = {
-  createApp: createApp$1,
-  render: render$1,
-  h: h$1,
-  Text: Text$1,
-  Fragment: Fragment$1,
-  nextTick: nextTick$1,
-  reactive: reactive$1,
-  ref: ref$1,
-  computed: computed$1,
-  effect: effect$1,
-  compile: compile$1,
+  createApp,
+  render,
+  h,
+  Text,
+  Fragment,
+  nextTick,
+  reactive,
+  ref,
+  computed,
+  effect,
+  compile,
 });
 
-const {
-    createApp,
-    render,
-    h,
-    Text,
-    Fragment,
-    nextTick,
-    reactive,
-    ref,
-    computed,
-    effect,
-    compile,
-  }=MiniVue;
-  let str=`<div id="3">{test} hello</div>`;
-
-  let code=compile(str);
-console.log(code);
+exports.MiniVue = MiniVue;

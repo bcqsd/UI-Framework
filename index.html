@@ -12,6 +12,17 @@
     </style>
 </head>
 <body>
+    <script>window.exports={}</script>
     <script src="build/index.js"></script>
+    <div id="app"></div>
+    <script>
+        createApp({
+           setup(){
+               const count=ref(0)
+               const s1=2
+           },
+           template:`<div>hello 2</div>`
+        }).mount('#app')
+    </script>
 </body>
 </html>

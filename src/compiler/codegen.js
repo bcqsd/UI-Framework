@@ -45,7 +45,7 @@ function createElementVnode(node){
        return  `h(${tag}),${propStr}`
     }
     let childrenStr=traverseChildren(node)
-    return `h(${tag},null,${childrenStr})`
+    return `h(${tag},${propStr},${childrenStr})`
 }
 
 function traverseChildren(node){

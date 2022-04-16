@@ -1,5 +1,5 @@
 export default {
-    input:'test.js',
+    input:'src/index.js',
     output:{
         file:'build/index.js',
         format:'cjs'
