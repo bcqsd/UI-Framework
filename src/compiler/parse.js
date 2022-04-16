@@ -160,7 +160,15 @@ function parseAttribute(context) {
 //解析属性值
 function parseAttributeValue(context) {
   advanceBy(context, 1)
-  const endIndex = context.source.indexOf(context.options.delimiters[1])
+  let endIndex = context.source.length
+  const endTokens = ['"',"'", '`',context.options.delimiters[1]]
+  //更新endIndex为最小的解析结束标志
+  for (let i = 0; i < endTokens.length; ++i) {
+    let index = context.source.indexOf(endTokens[i])
+    if (index != -1 && index < endIndex) {
+      endIndex = index
+    }
+  }
   const content = parseTextData(context, endIndex)
   advanceBy(context, 1)
   advanceSpaces(context)

@@ -1,5 +1,5 @@
-import { reactive } from "./reactive";
-import { effect } from "./effect";
-import { ref } from "./ref";
+export { reactive } from "./reactive";
+export { effect } from "./effect";
+export { ref } from "./ref";
 
-export {reactive,ref,effect}
+export {computed} from './computed'

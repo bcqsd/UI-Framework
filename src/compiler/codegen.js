@@ -14,15 +14,12 @@ function traverseNode(node) {
            const result=traverseChildren(node)
            return result;
         case NodeTypes.TEXT:
-          createTextVNode(node)
-            break;
+          return createTextVNode(node)
         case NodeTypes.INTERPOLATION:
             //表达式节点的content是一个有isStatic标记的text节点
-           createTextVNode(node.content)
-            break;
+          return createTextVNode(node.content)
         case NodeTypes.ELEMENT:
-        createElementVnode(node)
-            break;
+       return  createElementVnode(node)
     }
 }
 

@@ -1,3 +1,24 @@
-import { parse } from "./compiler/parse";
+import { compile } from './compiler/compile';
+import {
+  createApp,
+  render,
+  h,
+  Text,
+  Fragment,
+  nextTick,
+} from './runtime/index';
+import { reactive, ref, computed, effect } from './reactive/index';
 
-console.log(parse(`<div id={foo} onClick={ss}>hellp {ss2}</div>`))
+export const MiniVue = (window.MiniVue = {
+  createApp,
+  render,
+  h,
+  Text,
+  Fragment,
+  nextTick,
+  reactive,
+  ref,
+  computed,
+  effect,
+  compile,
+});
