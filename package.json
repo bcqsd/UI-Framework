@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "babel": "./node_modules/.bin/babel src --out-dir lib"
   },
   "repository": {
     "type": "git",
@@ -17,8 +18,12 @@
     "url": "https://github.com/bcqsd/UI-Framework/issues"
   },
   "homepage": "https://github.com/bcqsd/UI-Framework#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@babel/core": "^7.17.9"
+  },
   "devDependencies": {
+    "@babel/cli": "^7.17.6",
+    "@babel/preset-react": "^7.16.7",
     "rollup": "^2.70.1"
   }
 }

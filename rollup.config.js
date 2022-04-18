@@ -1,7 +1,7 @@
 export default {
-    input:'src/index.js',
+    input:'lib/react/didact.js',
     output:{
         file:'build/index.js',
-        format:'cjs'
+        format:'esm'
     }
 }
