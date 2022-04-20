@@ -5,8 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
-    "babel": "./node_modules/.bin/babel src --out-dir lib"
+    "babel": "./node_modules/.bin/babel src --out-dir lib",
+    "build": "yarn babel &&rollup -c"
   },
   "repository": {
     "type": "git",

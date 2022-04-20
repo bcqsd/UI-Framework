@@ -5,27 +5,9 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <style>
-        .a{
-            background-color: aqua;
-        }
-    </style>
 </head>
 <body>
-    <script>window.exports={}</script>
-    <script src="build/index.js"></script>
-    <div id="app"></div>
-    <script>
-        createApp({
-           setup(){
-               const count=ref(0)
-               const s1=2
-               return {
-                   count,s1
-               }
-           },
-           template:`<div>hello 2 {ctx.count.value}</div>`
-        }).mount('#app')
-    </script>
+    <div id="root"></div>
+    <script src="../build/index.js"></script>
 </body>
 </html>
